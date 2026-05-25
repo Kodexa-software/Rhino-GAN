@@ -65,7 +65,18 @@ conda activate nose-ai" >> ~/.bashrc
 exit
 ```
 
-### 6. Run backend and front end servers
+### 6. Run backend and front end servers at different terminals at same time
+
+```bash
+cd frontend
+yarn
+yarn dev
+```
+
+```bash
+cd backend
+python main.py
+```
 
 Please manually run the backend and frontend folder. You can watch the demo video for full tutorial.
 

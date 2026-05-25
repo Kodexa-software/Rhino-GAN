@@ -16,7 +16,7 @@ from typing import Optional
 from pydantic import BaseModel
 from models.Embedding import Embedding
 from face_processor import process_face
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from utils.bicubic import BicubicDownSample
 from utils.fan import extract_face_landmarks
 from utils.model_utils import download_weight
@@ -106,7 +106,9 @@ def get_image(im_name: str = Query(..., description="Image path inside images-ou
         return {"error": f"Image '{im_name}' not found"}
 
     mime_type, _ = mimetypes.guess_type(image_path)
-    return FileResponse(image_path, media_type=mime_type)
+    with open(image_path, "rb") as f:
+        data = f.read()
+    return Response(content=data, media_type=mime_type)
 
 
 class FineTuneRequest(BaseModel):

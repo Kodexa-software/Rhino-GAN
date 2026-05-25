@@ -29,7 +29,7 @@ def get_landmark(filepath,predictor):
     """
     detector = dlib.get_frontal_face_detector()
 
-    img = dlib.load_rgb_image(filepath)
+    img = np.array(PIL.Image.open(filepath).convert("RGB"))
     dets = detector(img, 1)
     filepath = Path(filepath)
     print(f"{filepath.name}: Number of faces detected: {len(dets)}")

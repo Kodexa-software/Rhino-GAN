@@ -52,9 +52,9 @@ setting = Namespace(
     Tunning_segmentation_lambda=0.3,
     Tunning_landmarks_lambda=0.01,
     Tunning_nose_perceptual_lambda=0.1,
-    Transfer_restructure_steps=5,
+    Transfer_restructure_steps=10,
     Transfer_restructure_perceptual_lambda=0.1,
-    Transfer_perceptual_steps=30,
+    Transfer_perceptual_steps=40,
     Transfer_perceptual_nose_lambda=0.1,
     Transfer_perceptual_face_lambda=1.0, 
 

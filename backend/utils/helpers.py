@@ -161,7 +161,7 @@ def row_align_gen_to_ref(aligned_ref, aligned_ref_mask, aligned_gen, aligned_gen
 
     aligned_new = F.grid_sample(
         aligned_gen, grid, mode='nearest',
-        padding_mode='zeros'
+        padding_mode='zeros', align_corners=False
     )
 
     return aligned_ref, aligned_new

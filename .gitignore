@@ -9,3 +9,7 @@ backend.log
 process.json
 
 frontend.log
+
+inverts/*
+
+*/fail-safe-models/*
