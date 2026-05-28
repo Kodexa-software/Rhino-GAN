@@ -10,6 +10,8 @@ process.json
 
 frontend.log
 
-inverts/*
+*/inverts/*
 
 */fail-safe-models/*
+
+*/tests/*

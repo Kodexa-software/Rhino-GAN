@@ -1,3 +1,4 @@
+import csv
 import os
 import torch
 import numpy as np
@@ -9,6 +10,27 @@ from utils.bicubic import BicubicDownSample
 from datasets.image_dataset import ImagesDataset
 from file_process import increment_inversion_step
 from utils.helpers import verbose, compare_LPIPS, save_as_image
+
+
+SAVE_SNAPSHOTS = True
+SAVE_LOSS_CSV = True
+
+
+def _snapshot_iters(total, fractions=(0.0, 0.25, 0.5, 0.75, 1.0)):
+    if total <= 1:
+        return {0}
+    last = total - 1
+    return {int(round(f * last)) for f in fractions}
+
+
+def _write_loss_csv(path, history):
+    if not history:
+        return
+    fieldnames = list(history[0].keys())
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(history)
 
 class Embedding(nn.Module):
     def __init__(self, opts):
@@ -58,6 +80,13 @@ class Embedding(nn.Module):
     def invert_images_in_W(self, image_name, ref_H, ref_L):
         pbar = tqdm(range(self.opts.W_steps), desc="W+ Inversion", leave=False)
 
+        output_folder = os.path.join(self.opts.output_dir, image_name)
+        snapshots_dir = os.path.join(output_folder, "W_snapshots")
+        if SAVE_SNAPSHOTS:
+            os.makedirs(snapshots_dir, exist_ok=True)
+        snapshot_iters = _snapshot_iters(self.opts.W_steps, fractions=(0.0, 0.1, 0.2, 0.3, 1.0))
+        loss_history = []
+
         latent = []
 
         if (self.opts.tile_latent):
@@ -99,15 +128,32 @@ class Embedding(nn.Module):
             loss_dict["P-norm"] = p_norm_loss.item()
             loss += p_norm_loss
 
+            if SAVE_SNAPSHOTS and step in snapshot_iters:
+                snap_path = os.path.join(snapshots_dir, f"iter_{step:05d}.png")
+                save_as_image(img_H.detach(), snap_path)
+
+            if SAVE_LOSS_CSV:
+                loss_history.append({"iter": step, **loss_dict, "total": loss.item()})
+
             loss.backward()
             optimizer_W.step()
             verbose(self, "W+ inversion", loss_dict, loss, pbar)
             increment_inversion_step(image_name)
 
+        if SAVE_LOSS_CSV:
+            _write_loss_csv(os.path.join(output_folder, "W_losses.csv"), loss_history)
+
         return latent_in.detach().clone()
 
     def invert_images_in_FS(self, image_name, ref_H, ref_L, W_plus):
         pbar = tqdm(range(self.opts.FS_steps), desc="FS Inversion", leave=False)
+
+        output_folder = os.path.join(self.opts.output_dir, image_name)
+        snapshots_dir = os.path.join(output_folder, "FS_snapshots")
+        if SAVE_SNAPSHOTS:
+            os.makedirs(snapshots_dir, exist_ok=True)
+        snapshot_iters = _snapshot_iters(self.opts.FS_steps, fractions=(0.0, 0.02, 0.08, 0.15, 1.0))
+        loss_history = []
 
         F_init, _ = self.net.generator([W_plus], input_is_latent=True, return_latents=False, start_layer=0, end_layer=3)
 
@@ -150,10 +196,20 @@ class Embedding(nn.Module):
             loss_dict["F-structure"] = F_structure_loss.item()
             loss += F_structure_loss
 
+            if SAVE_SNAPSHOTS and step in snapshot_iters:
+                snap_path = os.path.join(snapshots_dir, f"iter_{step:05d}.png")
+                save_as_image(img_H.detach(), snap_path)
+
+            if SAVE_LOSS_CSV:
+                loss_history.append({"iter": step, **loss_dict, "total": loss.item()})
+
             loss.backward()
             optimizer_FS.step()
             verbose(self, "FS inversion", loss_dict, loss, pbar)
             increment_inversion_step(image_name)
-        
+
+        if SAVE_LOSS_CSV:
+            _write_loss_csv(os.path.join(output_folder, "FS_losses.csv"), loss_history)
+
         return img_H.detach().clone(), latent_F, latent_in
 

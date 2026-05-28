@@ -1,5 +1,7 @@
+import csv
 import os
 import torch
+from datetime import datetime
 from torch import nn
 from tqdm import tqdm
 from pathlib import Path
@@ -13,6 +15,24 @@ from utils.model_utils import download_weight
 from file_process import increment_inversion_step
 from models.face_parsing.model import seg_mean, seg_std
 from utils.helpers import dilate_mask, extract_and_align_noses, to_grayscale_tensor, verbose
+
+
+SAVE_TRANSFER_LOSS_CSV = True
+
+TRANSFER_TESTS_DIR = Path(__file__).resolve().parent.parent / "transfer_tests"
+MIXING_DIR = TRANSFER_TESTS_DIR / "mixing"
+PRESERVATION_DIR = TRANSFER_TESTS_DIR / "preservation"
+
+
+def _write_loss_csv(path, history):
+    if not history:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = list(history[0].keys())
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(history)
 
 def extract_bbox(mask):
     ys, xs = torch.where(mask[0,0] > 0)
@@ -156,12 +176,13 @@ class StructureTransfer(nn.Module):
 
         new_latent_optimizer = torch.optim.Adam([F_mix], lr=self.opts.learning_rate)
 
-        
+        mixing_history = []
+
         for step in pbar:
             new_latent_optimizer.zero_grad()
 
             loss_dict = {}
-            
+
             loss = 0.0
 
             target_im = target_im.requires_grad_(False)
@@ -195,12 +216,19 @@ class StructureTransfer(nn.Module):
 
             loss += style_loss * self.opts.Transfer_restructure_perceptual_lambda
 
+            if SAVE_TRANSFER_LOSS_CSV:
+                mixing_history.append({"iter": step, **loss_dict, "total": loss.item()})
+
             increment_inversion_step(inversion_name)
             verbose(self, "Transferring", loss_dict, loss, pbar)
 
             loss.backward()
             new_latent_optimizer.step()
-            
+
+        if SAVE_TRANSFER_LOSS_CSV:
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            _write_loss_csv(MIXING_DIR / f"{inversion_name}_{ts}.csv", mixing_history)
+
         F_mix = self.swap_F_noses(orginal_seg.clone(), F1, self.get_im_seg(gen_im), F_mix)
 
         pbar = tqdm(range(self.opts.Transfer_perceptual_steps), desc="Preserve Structure", leave=False)
@@ -243,6 +271,7 @@ class StructureTransfer(nn.Module):
         ref_image_target = ref_image * image_mask
         nose_image_target = nose_image * nose_mask
 
+        preservation_history = []
 
         for step in pbar:
             new_latent_optimizer.zero_grad()
@@ -266,10 +295,17 @@ class StructureTransfer(nn.Module):
             loss_dict['rest'] = rest_image_loss.item()
             loss += rest_image_loss * self.opts.Transfer_perceptual_face_lambda
 
+            if SAVE_TRANSFER_LOSS_CSV:
+                preservation_history.append({"iter": step, **loss_dict, "total": loss.item()})
+
             increment_inversion_step(inversion_name)
             verbose(self, "Preserving", loss_dict, loss, pbar)
 
             loss.backward()
             new_latent_optimizer.step()
+
+        if SAVE_TRANSFER_LOSS_CSV:
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            _write_loss_csv(PRESERVATION_DIR / f"{inversion_name}_{ts}.csv", preservation_history)
 
         return S_fixed.detach().clone(), F_fixed.detach().clone()
