@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" 2>/dev/null; [ -f CLAUDE.md ] || exit 0; newer=$( { find backend frontend/src environment -type f \\( -name '*.py' -o -name '*.ts' -o -name '*.tsx' -o -name '*.yml' -o -name '*.css' \\) ! -path '*/images/*' ! -path '*/node_modules/*' ! -path '*/cache/*' ! -path '*/pretrained_models/*' ! -path '*/fail-safe-models/*' -newer CLAUDE.md 2>/dev/null; find Dockerfile README.md frontend/package.json frontend/vite.config.ts frontend/tailwind.config.js -maxdepth 0 -newer CLAUDE.md 2>/dev/null; } | head -30 ); [ -n \"$newer\" ] || exit 0; files=$(printf '%s' \"$newer\" | tr '\\n' '|' | sed 's/|/ | /g'); printf '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"CLAUDE.md may be OUT OF DATE. Files modified after CLAUDE.md was last written: %s. Review them and update the affected CLAUDE.md sections so CLAUDE.md stays 100%% accurate.\"}}\\n' \"$files\"",
+            "timeout": 30,
+            "statusMessage": "Checking if CLAUDE.md is up to date..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "f=$(sed -n 's/.*\"file_path\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p'); case \"$f\" in \"\"|*CLAUDE.md*|*.claude*|*scratchpad*|*app.log*|*process.json*) ;; *Rhino-GAN*) echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"A RhinoGAN project file was just modified. Before ending this turn, check whether this change affects CLAUDE.md (commands, endpoints, settings, store, components, flow) and update CLAUDE.md so it stays 100% accurate.\"}}' ;; esac",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
