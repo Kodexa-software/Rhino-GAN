@@ -5,6 +5,7 @@ from torch import nn
 from tqdm import tqdm
 from losses import lpips
 from models.Net import Net
+from utils.video import InversionVideo
 from utils.bicubic import BicubicDownSample
 from datasets.image_dataset import ImagesDataset
 from file_process import increment_inversion_step
@@ -12,9 +13,10 @@ from utils.helpers import verbose, compare_LPIPS, save_as_image
 
 class Embedding(nn.Module):
     def __init__(self, opts):
-        super(Embedding, self).__init__()  
+        super(Embedding, self).__init__()
         self.opts = opts
         self.net = Net(self.opts)
+        self.video = InversionVideo(self.opts)
         self.load_downsampling()
         self.setup_loss_functions()
 
@@ -36,9 +38,17 @@ class Embedding(nn.Module):
         ref_H = ref_H.unsqueeze(0).to(self.opts.device)
         ref_L = ref_L.unsqueeze(0).to(self.opts.device)
 
-        W_plus =  self.invert_images_in_W(image_name, ref_H, ref_L)
+        self.video.open(self.opts.W_steps + self.opts.FS_steps)
 
-        gen_im, F, S = self.invert_images_in_FS(image_name, ref_H, ref_L, W_plus)
+        try:
+            W_plus =  self.invert_images_in_W(image_name, ref_H, ref_L)
+
+            # black gap that separates the W+ phase from the FS phase
+            self.video.add_black()
+
+            gen_im, F, S = self.invert_images_in_FS(image_name, ref_H, ref_L, W_plus)
+        finally:
+            self.video.close()
 
         output_folder = os.path.join(self.opts.output_dir, image_name)
 
@@ -102,6 +112,7 @@ class Embedding(nn.Module):
             loss.backward()
             optimizer_W.step()
             verbose(self, "W+ inversion", loss_dict, loss, pbar)
+            self.video.add(img_H)
             increment_inversion_step(image_name)
 
         return latent_in.detach().clone()
@@ -153,6 +164,7 @@ class Embedding(nn.Module):
             loss.backward()
             optimizer_FS.step()
             verbose(self, "FS inversion", loss_dict, loss, pbar)
+            self.video.add(img_H)
             increment_inversion_step(image_name)
         
         return img_H.detach().clone(), latent_F, latent_in

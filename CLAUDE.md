@@ -22,6 +22,9 @@ environment/environment.yml   conda env "nose-ai" (Python 3.7, torch 1.13.1)
 Dockerfile   pytorch 2.0.1-cuda11.7 base + CUDA toolkit 11.7 + Miniconda + Node 22 (nvm)
 images/      README assets only
 process.json Runtime job-status state (also backend/process.json); reset to {} on backend start
+alignment-phase.md/.svg/.png  Flowchart (mermaid + rendered image) + worked numeric example of the upload-time FFHQ face-alignment phase
+k-inversion.mp4  20 s recording of the latest inversion (18 s of W+ then FS, 2 s black gap between); overwritten by every inversion, git-ignored
+alignment-phase-simple.svg/.png  Seminar slide: the alignment phase as 4 simple illustrated steps (find / measure / frame / straighten)
 ```
 
 No tests, no CI, no lint hooks in the repo.
@@ -65,7 +68,8 @@ Single `Namespace` called `setting`, imported everywhere as `opts`. Key values:
 - `size=1024`, `device='cuda'`, `learning_rate=0.01` (Adam), `ckpt=/nose-ai/backend/pretrained_models/ffhq.pt`, `seg_ckpt=.../seg.pth`
 - Step counts: `W_steps=1100`, `FS_steps=250`, `Tune_steps=50`, `Transfer_restructure_steps=10`, `Transfer_perceptual_steps=40`
 - Lambdas: `percept=1.0`, `l2=1.0`, `p_norm=0.001`, `l_F=0.1`, `Tunning_segmentation=0.3`, `Tunning_landmarks=0.01`, `Tunning_nose_perceptual=0.1`, `Transfer_restructure_perceptual=0.1`, `Transfer_perceptual_nose=0.1`, `Transfer_perceptual_face=1.0`
-- Dirs (created on import): `images/inputs` (aligned faces), `images/output` (results), `images/unprocessed` (raw uploads)
+- Dirs (created on import): `images/inputs` (aligned faces), `images/output` (results), `images/unprocessed` (raw uploads); `root_dir=/nose-ai`
+- Inversion video: `capture_video=True` — the on/off boolean, declared as a module-level constant at the top of `setting.py`; flip it to `False` to skip recording entirely. Companion values: `video_path=/nose-ai/k-inversion.mp4`, `video_size=512`, `video_fps=30`, `video_seconds=18` (frame content), `video_gap_seconds=2` → 20 s total
 
 ## HTTP endpoints (`main.py`)
 
@@ -86,7 +90,7 @@ Progress lives in `process.json` via `file_process.py` (`set_inversion_image`, `
 ## ML pipeline (`models/`)
 
 - **`Net.py`** — wraps StyleGAN2 `Generator` (`models/stylegan2/model.py`, supports `start_layer`/`end_layer`/`layer_in` partial forward). Loads `ffhq.pt` `g_ema` + `latent_avg`, frozen/eval. `layer_num=18` @1024, `S_index=7` (layers ≥7 form the S half of FS). Holds the PCA model for p-norm regularization (`cal_p_norm_loss`, `cal_l_F`).
-- **`Embedding.py`** — image inversion (II2S-style): `invert_images_in_W` (W+ optimization; L2 + LPIPS + p-norm) then `invert_images_in_FS` (optimize F = layer-3 feature map + S = W+ layers 7–17; L2 + LPIPS + F-structure). Saves `output/<name>/FS.npz` (`latent_in`=S, `latent_F`=F) + `<name>.png`.
+- **`Embedding.py`** — image inversion (II2S-style): `invert_images_in_W` (W+ optimization; L2 + LPIPS + p-norm) then `invert_images_in_FS` (optimize F = layer-3 feature map + S = W+ layers 7–17; L2 + LPIPS + F-structure). Saves `output/<name>/FS.npz` (`latent_in`=S, `latent_F`=F) + `<name>.png`. Also records both phases into `k-inversion.mp4` via `utils/video.InversionVideo` (opened in `invert_image`, closed in a `finally`).
 - **`Tunning.py`** — `Tunning.tune_image(FineTuneContext)`; pydantic `FineTuneContext {ref_path, inversion_name, nose_path?, landmarks?, segmentation?}`. Self-tuning path `nose_tunning`: optimizes F+S with (1) cross-entropy seg loss vs user-edited 512×512 mask, (2) L1 landmark loss on nose landmarks (indices 27–35, `nose_idxs`), (3) LPIPS nose-style loss on aligned nose crops vs original, (4) masked LPIPS face-preservation loss outside the nose. Saves to `output/<name>/tuned/FS.npz` + `tuned/FS.png`.
 - **`StructureTransfer.py`** — NSB: loads both images' FS.npz; `swap_F_noses` blends F maps inside dilated nose masks minus "red line" (non-skin/non-nose) forbidden regions; then two optimization phases — nose-style LPIPS on grayscale aligned crops (10 steps, F only), then nose/rest LPIPS preservation (40 steps, F+S). Called via `Tunning.nose_transfer`, same save path. Local seg constants: NOSE=2, SKIN=1, HAIR=10.
 - **`face_parsing/`** — BiSeNet (16 classes), input 512, normalized by `seg_mean`/`seg_std` from `face_parsing/model.py`.
@@ -99,6 +103,7 @@ Progress lives in `process.json` via `file_process.py` (`set_inversion_image`, `
 - `utils/fan.py` — **differentiable** FAN landmarks: face_alignment 3D model, `soft_argmax_2d` over heatmaps → (68,3); z = heatmap max. Model instantiated at module import (cuda).
 - `utils/shape_predictor.py` + `face_processor.py` — dlib face alignment; predictor cached in `backend/cache/`
 - `utils/model_utils.py` — gdown `weight_dic` (ffhq.pt, seg.pth, afhq*, metfaces)
+- `utils/video.py` — `InversionVideo`: cv2 `mp4v` writer for the inversion recording (`open(total_steps)`/`add`/`add_black`/`close`). `keeps_frame` samples `video_seconds × video_fps` frames evenly across `W_steps + FS_steps`, so each phase keeps its share (1100/250 → 440/100 frames) and the file always lands at `video_seconds`. Silently no-ops when `opts.capture_video` is `False` or the writer can't open
 - `utils/bicubic.py` — `BicubicDownSample`; `utils/data_utils.py` — `load_FS_latent`; `datasets/image_dataset.py` — `ImagesDataset` (returns im_H 1024 + im_L 256, normalized to [-1,1])
 
 ## Backend gotchas
@@ -153,7 +158,7 @@ i18next + http-backend + browser-languagedetector; locales in `frontend/public/l
 # End-to-end flow (mental model)
 
 1. User uploads a photo → dlib aligns/crops to 1024×1024 → `images/inputs/<name>.png`
-2. Inversion job (~1350 steps): W+ then FS optimization → `images/output/<name>/FS.npz` + `<name>.png`
+2. Inversion job (~1350 steps): W+ then FS optimization → `images/output/<name>/FS.npz` + `<name>.png`, plus `k-inversion.mp4` at the repo root (overwritten each run)
 3. User selects the inverted image in the UI, then either:
    - **NSR (self)**: edits the 512×512 nose segmentation with a brush and/or drags nose landmarks (27–35) → **Style** → `/fine-tune` → `Tunning.nose_tunning` (50 steps)
    - **NSB (transfer)**: picks another inverted image as nose style → **Transfer** → `/fine-tune` → `StructureTransfer.transfer` (10 + 40 steps)

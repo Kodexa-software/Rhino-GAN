@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1710" viewBox="0 0 1500 1710" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <!-- background -->
+  <rect x="0" y="0" width="1500" height="1710" fill="#ffffff"/>
+
+  <!-- title -->
+  <text x="60" y="52" font-size="26" font-weight="700" fill="#0f172a">RhinoGAN — Alignment Phase</text>
+  <text x="60" y="78" font-size="14" fill="#64748b">Upload-time FFHQ face alignment · backend/face_processor.py → utils/shape_predictor.py::align_face</text>
+
+  <!-- ======== phase bands ======== -->
+  <rect x="60" y="380" width="1380" height="388" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="84" y="408" font-size="13" font-weight="700" letter-spacing="1" fill="#94a3b8">1 · GEOMETRY FROM LANDMARKS</text>
+
+  <rect x="60" y="796" width="1380" height="616" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="84" y="824" font-size="13" font-weight="700" letter-spacing="1" fill="#94a3b8">2 · CONDITIONAL IMAGE OPS</text>
+
+  <rect x="60" y="1440" width="1380" height="228" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="84" y="1468" font-size="13" font-weight="700" letter-spacing="1" fill="#94a3b8">3 · OUTPUT</text>
+
+  <!-- ======== arrows (drawn under nodes) ======== -->
+  <g stroke="#64748b" stroke-width="1.6" fill="none">
+    <line x1="520" y1="176" x2="520" y2="200" marker-end="url(#arr)"/>
+    <line x1="750" y1="232" x2="876" y2="232" marker-end="url(#arr)"/>
+    <line x1="520" y1="260" x2="520" y2="288" marker-end="url(#arr)"/>
+    <line x1="520" y1="348" x2="520" y2="424" marker-end="url(#arr)"/>
+    <line x1="520" y1="506" x2="520" y2="530" marker-end="url(#arr)"/>
+    <line x1="520" y1="612" x2="520" y2="636" marker-end="url(#arr)"/>
+    <line x1="520" y1="730" x2="520" y2="842" marker-end="url(#arr)"/>
+    <!-- D1 yes / no / return -->
+    <line x1="720" y1="894" x2="876" y2="894" marker-end="url(#arr)"/>
+    <line x1="520" y1="942" x2="520" y2="996" marker-end="url(#arr)"/>
+    <path d="M1110,934 V972 H522"/>
+    <!-- D2 yes / no / return -->
+    <line x1="720" y1="1048" x2="876" y2="1048" marker-end="url(#arr)"/>
+    <line x1="520" y1="1096" x2="520" y2="1150" marker-end="url(#arr)"/>
+    <path d="M1110,1088 V1126 H522"/>
+    <!-- D3 yes / no / return -->
+    <line x1="720" y1="1202" x2="876" y2="1202" marker-end="url(#arr)"/>
+    <line x1="520" y1="1250" x2="520" y2="1304" marker-end="url(#arr)"/>
+    <path d="M1110,1246 V1284 H522"/>
+    <!-- to output -->
+    <line x1="520" y1="1396" x2="520" y2="1484" marker-end="url(#arr)"/>
+    <line x1="520" y1="1568" x2="520" y2="1586" marker-end="url(#arr)"/>
+  </g>
+
+  <!-- arrow labels -->
+  <g font-size="12" fill="#475569">
+    <text x="808" y="224" text-anchor="middle" font-style="italic">0 faces</text>
+    <text x="532" y="280">face found</text>
+    <text x="798" y="886" text-anchor="middle" font-style="italic">yes</text>
+    <text x="532" y="974">no</text>
+    <text x="798" y="1040" text-anchor="middle" font-style="italic">yes</text>
+    <text x="532" y="1128">no</text>
+    <text x="798" y="1194" text-anchor="middle" font-style="italic">yes</text>
+    <text x="532" y="1282">no</text>
+  </g>
+
+  <!-- ======== nodes ======== -->
+
+  <!-- N1 upload -->
+  <rect x="290" y="104" width="460" height="72" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.4"/>
+  <text x="520" y="134" text-anchor="middle" font-size="16" font-weight="600" fill="#0f172a">POST /upload-image</text>
+  <text x="520" y="156" text-anchor="middle" font-size="12.5" fill="#475569">photo saved to backend/images/unprocessed/</text>
+
+  <!-- N2 detector -->
+  <rect x="290" y="204" width="460" height="56" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.4"/>
+  <text x="520" y="228" text-anchor="middle" font-size="16" font-weight="600" fill="#1e3a5f">dlib frontal face detector</text>
+  <text x="520" y="248" text-anchor="middle" font-size="12.5" fill="#475569">detector(img, 1)</text>
+
+  <!-- E error -->
+  <rect x="880" y="198" width="460" height="68" rx="10" fill="#fef2f2" stroke="#ef4444" stroke-width="1.4"/>
+  <text x="1110" y="226" text-anchor="middle" font-size="15" font-weight="600" fill="#7f1d1d">RuntimeError: no faces found</text>
+  <text x="1110" y="248" text-anchor="middle" font-size="12.5" fill="#991b1b">upload request fails</text>
+
+  <!-- N3 landmarks -->
+  <rect x="290" y="292" width="460" height="56" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.4"/>
+  <text x="520" y="316" text-anchor="middle" font-size="16" font-weight="600" fill="#1e3a5f">shape_predictor_68_face_landmarks</text>
+  <text x="520" y="336" text-anchor="middle" font-size="12.5" fill="#475569">68 (x, y) landmarks per detected face</text>
+
+  <!-- N4 vectors -->
+  <rect x="290" y="428" width="460" height="78" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.4"/>
+  <text x="520" y="452" text-anchor="middle" font-size="15.5" font-weight="600" fill="#1e3a5f">eye_avg · eye_to_eye · mouth_avg · eye_to_mouth</text>
+  <text x="520" y="472" text-anchor="middle" font-size="12.5" fill="#475569">eyes = mean(lm 36–41), mean(lm 42–47) · mouth = lm 48, lm 54</text>
+  <text x="520" y="492" text-anchor="middle" font-size="12" font-style="italic" fill="#94a3b8">example: eye_to_eye = (500, −20) · eye_to_mouth = (0, 565)</text>
+
+  <!-- N5 x axis -->
+  <rect x="290" y="534" width="460" height="78" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.4"/>
+  <text x="520" y="558" text-anchor="middle" font-size="15.5" font-weight="600" fill="#1e3a5f">x-axis = eye_to_eye − rot90(eye_to_mouth)</text>
+  <text x="520" y="578" text-anchor="middle" font-size="12.5" fill="#475569">scale = max(2.0·|eye_to_eye|, 1.8·|eye_to_mouth|)</text>
+  <text x="520" y="598" text-anchor="middle" font-size="12" font-style="italic" fill="#94a3b8">example: scale = max(1000.8, 1017) = 1017</text>
+
+  <!-- N6 quad -->
+  <rect x="290" y="640" width="460" height="90" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.4"/>
+  <text x="520" y="666" text-anchor="middle" font-size="15.5" font-weight="600" fill="#1e3a5f">oriented quad = c ± x ± y · qsize = 2·|x|</text>
+  <text x="520" y="686" text-anchor="middle" font-size="12.5" fill="#475569">c = eye_avg + 0.1·eye_to_mouth — rectangle follows head tilt</text>
+  <text x="520" y="708" text-anchor="middle" font-size="12" font-style="italic" fill="#94a3b8">example: qsize = 2034 px · tilt ≈ 1.1°</text>
+
+  <!-- D1 shrink -->
+  <polygon points="520,846 720,894 520,942 320,894" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.4"/>
+  <text x="520" y="890" text-anchor="middle" font-size="14" font-weight="600" fill="#78350f">floor(qsize/1024 · 0.5) &gt; 1 ?</text>
+  <text x="520" y="910" text-anchor="middle" font-size="12" fill="#a16207">(very large faces only)</text>
+  <text x="302" y="898" text-anchor="end" font-size="12" font-style="italic" fill="#94a3b8">ex: 0 → skip</text>
+
+  <!-- S1 shrink op -->
+  <rect x="880" y="854" width="460" height="80" rx="10" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.4"/>
+  <text x="1110" y="886" text-anchor="middle" font-size="15" font-weight="600" fill="#4c1d95">downscale image by shrink (ANTIALIAS)</text>
+  <text x="1110" y="908" text-anchor="middle" font-size="12.5" fill="#6d28d9">quad /= shrink · qsize /= shrink</text>
+
+  <!-- D2 crop -->
+  <polygon points="520,1000 720,1048 520,1096 320,1048" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.4"/>
+  <text x="520" y="1044" text-anchor="middle" font-size="14" font-weight="600" fill="#78350f">crop box (quad bounds ± border) &lt; image ?</text>
+  <text x="520" y="1064" text-anchor="middle" font-size="12" fill="#a16207">border = max(0.1·qsize, 3)</text>
+  <text x="302" y="1052" text-anchor="end" font-size="12" font-style="italic" fill="#94a3b8">ex: yes → 2478×2478</text>
+
+  <!-- S2 crop op -->
+  <rect x="880" y="1008" width="460" height="80" rx="10" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.4"/>
+  <text x="1110" y="1040" text-anchor="middle" font-size="15" font-weight="600" fill="#4c1d95">img.crop(box)</text>
+  <text x="1110" y="1062" text-anchor="middle" font-size="12.5" fill="#6d28d9">quad −= crop origin</text>
+
+  <!-- D3 pad -->
+  <polygon points="520,1154 720,1202 520,1250 320,1202" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.4"/>
+  <text x="520" y="1198" text-anchor="middle" font-size="14" font-weight="600" fill="#78350f">quad sticks out of image &gt; border − 4 ?</text>
+  <text x="520" y="1218" text-anchor="middle" font-size="12" fill="#a16207">(face near photo edge)</text>
+  <text x="302" y="1206" text-anchor="end" font-size="12" font-style="italic" fill="#94a3b8">ex: inside → skip</text>
+
+  <!-- S3 pad op -->
+  <rect x="880" y="1158" width="460" height="88" rx="10" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.4"/>
+  <text x="1110" y="1184" text-anchor="middle" font-size="15" font-weight="600" fill="#4c1d95">reflect-pad ≥ 0.3·qsize</text>
+  <text x="1110" y="1206" text-anchor="middle" font-size="12.5" fill="#6d28d9">gaussian-blur rim + fade to median color</text>
+  <text x="1110" y="1228" text-anchor="middle" font-size="12.5" fill="#6d28d9">quad += pad</text>
+
+  <!-- N7 warp -->
+  <rect x="290" y="1308" width="460" height="88" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.4"/>
+  <text x="520" y="1334" text-anchor="middle" font-size="15.5" font-weight="600" fill="#1e3a5f">img.transform((1024,1024), QUAD, quad, BILINEAR)</text>
+  <text x="520" y="1354" text-anchor="middle" font-size="12.5" fill="#475569">rotate + crop + rescale in a single warp</text>
+  <text x="520" y="1376" text-anchor="middle" font-size="12" font-style="italic" fill="#94a3b8">example: de-tilts 1.1° · ~2:1 downscale → 1024×1024</text>
+
+  <!-- N8 post-process -->
+  <rect x="290" y="1488" width="460" height="80" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.4"/>
+  <text x="520" y="1512" text-anchor="middle" font-size="15.5" font-weight="600" fill="#1e3a5f">process_face post-processing</text>
+  <text x="520" y="1534" text-anchor="middle" font-size="12.5" fill="#475569">faces[0] → clamp(0,1) → LANCZOS resize 1024×1024</text>
+  <text x="520" y="1554" text-anchor="middle" font-size="12.5" fill="#475569">saved to backend/images/inputs/&lt;name&gt;.png</text>
+
+  <!-- N9 queued -->
+  <rect x="290" y="1590" width="460" height="56" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.4"/>
+  <text x="520" y="1612" text-anchor="middle" font-size="15" font-weight="600" fill="#14532d">inversion job queued in process.json</text>
+  <text x="520" y="1634" text-anchor="middle" font-size="12.5" fill="#166534">W+ 1100 steps → FS 250 steps → output/&lt;name&gt;/FS.npz + PNG</text>
+
+  <!-- footer -->
+  <text x="60" y="1694" font-size="12" font-style="italic" fill="#94a3b8">Worked example used throughout: 3000×4000 upload · eyes (1250,1500)/(1750,1480) · mouth lm48/lm54 = (1320,2050)/(1680,2060) — full math in alignment-phase.md</text>
+</svg>

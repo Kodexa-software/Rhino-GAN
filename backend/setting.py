@@ -3,6 +3,11 @@ from argparse import Namespace
 
 size = 1024
 cached_dir_name = 'cache'
+root_dir_name = '/nose-ai'
+
+# master switch for the inversion recording (root/k-inversion.mp4) — set to False to skip it
+capture_video = False
+
 input_dir_name ='/nose-ai/backend/images/inputs'
 output_dir_name ='/nose-ai/backend/images/output'
 unprocessed_dir_name ='/nose-ai/backend/images/unprocessed'
@@ -12,8 +17,14 @@ for d in [input_dir_name, output_dir_name, unprocessed_dir_name]:
     os.makedirs(d, exist_ok=True)
 
 setting = Namespace(
-    video = True,
+    capture_video=capture_video,
+    video_path=os.path.join(root_dir_name, 'k-inversion.mp4'),
+    video_size=512,
+    video_fps=30,
+    video_seconds=18,
+    video_gap_seconds=2,
     FS_path = "",
+    root_dir=root_dir_name,
     input_dir=input_dir_name,
     output_dir=output_dir_name,
     unprocessed_dir=unprocessed_dir_name,
