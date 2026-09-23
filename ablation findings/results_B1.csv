@@ -1,0 +1,2 @@
+case,arcface_identity,lpips_non_nose,lpips_nose_vs_target,lpips_nose_RA_vs_target,lpips_nose_vs_identity
+nsb_4_from_5,0.7134957909584045,0.03882390260696411,0.010447954759001732,0.29669591784477234,0.008419087156653404

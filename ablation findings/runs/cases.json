@@ -1,0 +1,21 @@
+{
+  "seed": 2026,
+  "base_image": "4",
+  "nsb_cases": [
+    [
+      "4",
+      "5"
+    ]
+  ],
+  "nsr_cases": [
+    [
+      "4",
+      "reduce"
+    ],
+    [
+      "4",
+      "enlarge"
+    ]
+  ],
+  "note": "seeded shuffle order over the image-4 cases; reverse-direction / image-5 runs were deleted at the author's request"
+}

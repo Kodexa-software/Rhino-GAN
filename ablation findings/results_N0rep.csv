@@ -1,0 +1,2 @@
+case,arcface_identity,lpips_non_nose,lpips_nose,nose_area_ratio,nose_area_target_ratio,lm_l1_to_target_px,lm_l1_orig_to_target_px
+nsr_4_enlarge,0.9248456358909607,0.03966539725661278,0.0027671242132782936,1.1110278973974912,1.2306684141546527,1.8370903730392456,3.2108967304229736

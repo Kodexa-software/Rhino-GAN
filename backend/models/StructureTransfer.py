@@ -130,7 +130,12 @@ class StructureTransfer(nn.Module):
 
         return F_mix
 
-    def transfer(self, I1, I2, inversion_name):
+    def transfer(self, I1, I2, inversion_name, ablation=None):
+        # ablation: optional AblationConfig (see models/Tunning.py); None keeps the default behaviour
+        drop_mixing = ablation is not None and ablation.dropped("mixing")
+        drop_preservation = ablation is not None and ablation.dropped("preservation")
+        drop_nose_loss = ablation is not None and ablation.dropped("nose_loss")
+
         FS_1_path = self.getFullFSPath(I1)
         FS_2_path = self.getFullFSPath(I2)
         
@@ -150,13 +155,14 @@ class StructureTransfer(nn.Module):
 
         F_mix = self.swap_F_noses(orginal_seg.clone(), F1, im_nose_seg.clone(), F2)
 
-        pbar = tqdm(range(self.opts.Transfer_restructure_steps), desc="Transfer Structure", leave=False)
+        pbar = tqdm(range(0 if drop_mixing else self.opts.Transfer_restructure_steps), desc="Transfer Structure", leave=False)
 
         F_mix = F2.clone().detach().requires_grad_(True)
 
         new_latent_optimizer = torch.optim.Adam([F_mix], lr=self.opts.learning_rate)
 
-        
+        gen_im = im_nose  # image produced by F_mix before any mixing step (used when stage 1 is skipped)
+
         for step in pbar:
             new_latent_optimizer.zero_grad()
 
@@ -202,6 +208,9 @@ class StructureTransfer(nn.Module):
             new_latent_optimizer.step()
             
         F_mix = self.swap_F_noses(orginal_seg.clone(), F1, self.get_im_seg(gen_im), F_mix)
+
+        if drop_preservation:
+            return S1.detach().clone(), F_mix.detach().clone()
 
         pbar = tqdm(range(self.opts.Transfer_perceptual_steps), desc="Preserve Structure", leave=False)
 
@@ -258,9 +267,10 @@ class StructureTransfer(nn.Module):
             gen_image_nose = gen_im * nose_mask
             gen_image_rest = gen_im * image_mask
 
-            nose_image_loss = self.lpips(gen_image_nose, nose_image_target).sum()
-            loss_dict['nose'] = nose_image_loss.item()
-            loss += nose_image_loss * self.opts.Transfer_perceptual_nose_lambda
+            if not drop_nose_loss:
+                nose_image_loss = self.lpips(gen_image_nose, nose_image_target).sum()
+                loss_dict['nose'] = nose_image_loss.item()
+                loss += nose_image_loss * self.opts.Transfer_perceptual_nose_lambda
 
             rest_image_loss = self.lpips(gen_image_rest, ref_image_target).sum()
             loss_dict['rest'] = rest_image_loss.item()

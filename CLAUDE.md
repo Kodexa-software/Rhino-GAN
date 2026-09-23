@@ -25,6 +25,11 @@ process.json Runtime job-status state (also backend/process.json); reset to {} o
 alignment-phase.md/.svg/.png  Flowchart (mermaid + rendered image) + worked numeric example of the upload-time FFHQ face-alignment phase
 k-inversion.mp4  20 s recording of the latest inversion (18 s of W+ then FS, 2 s black gap between); overwritten by every inversion, git-ignored
 alignment-phase-simple.svg/.png  Seminar slide: the alignment phase as 4 simple illustrated steps (find / measure / frame / straighten)
+ablation-command.md   Brief for the ablation study (paper-concept → code mapping, configs B0–B3 / N0–N4)
+ablation findings/    Ablation study deliverables: fig_nsb.png, fig_nsr.png, results_*.csv, summary.csv, README.md (mapping table,
+                      commands, findings), scripts make_targets.py (run in container) / run_ablation.py (host, drives the API) /
+                      metrics.py (run in the Research container, reuses C:/projects/Research/nose/quantative/ttests.py) / make_figures.py,
+                      plus runs/ (all outputs), targets/ (generated NSR masks+landmarks), originals/, _work/ (preview strips)
 ```
 
 No tests, no CI, no lint hooks in the repo.
@@ -69,12 +74,12 @@ Single `Namespace` called `setting`, imported everywhere as `opts`. Key values:
 - Step counts: `W_steps=1100`, `FS_steps=250`, `Tune_steps=50`, `Transfer_restructure_steps=10`, `Transfer_perceptual_steps=40`
 - Lambdas: `percept=1.0`, `l2=1.0`, `p_norm=0.001`, `l_F=0.1`, `Tunning_segmentation=0.3`, `Tunning_landmarks=0.01`, `Tunning_nose_perceptual=0.1`, `Transfer_restructure_perceptual=0.1`, `Transfer_perceptual_nose=0.1`, `Transfer_perceptual_face=1.0`
 - Dirs (created on import): `images/inputs` (aligned faces), `images/output` (results), `images/unprocessed` (raw uploads); `root_dir=/nose-ai`
-- Inversion video: `capture_video=True` — the on/off boolean, declared as a module-level constant at the top of `setting.py`; flip it to `False` to skip recording entirely. Companion values: `video_path=/nose-ai/k-inversion.mp4`, `video_size=512`, `video_fps=30`, `video_seconds=18` (frame content), `video_gap_seconds=2` → 20 s total
+- Inversion video: `capture_video=False` (currently off) — the on/off boolean, declared as a module-level constant at the top of `setting.py`; flip it to `True` to record the inversion. Companion values: `video_path=/nose-ai/k-inversion.mp4`, `video_size=512`, `video_fps=30`, `video_seconds=18` (frame content), `video_gap_seconds=2` → 20 s total
 
 ## HTTP endpoints (`main.py`)
 
 - `POST /upload-image` — multipart png/jpeg → save to unprocessed → `face_processor.process_face` (dlib align → 1024×1024 PNG in inputs) → queue inversion job. Returns `"Started"` / `"Queued"`
-- `POST /fine-tune` — body `{fullPath, noseStyle, landmarks?, segmentation?}`; **landmarks/segmentation arrive as JSON strings**. `noseStyle == 'self'` or `== fullPath` → tuning job named `Tunning-<stem>`; otherwise transfer job `Transfer-<refstem><nosestem>`. Paths are relative to `output_dir`
+- `POST /fine-tune` — body `{fullPath, noseStyle, landmarks?, segmentation?, ablation?}`; **landmarks/segmentation arrive as JSON strings**. `noseStyle == 'self'` or `== fullPath` → tuning job named `Tunning-<stem>`; otherwise transfer job `Transfer-<refstem><nosestem>`. Paths are relative to `output_dir`. `ablation` (optional, never sent by the frontend) is an `AblationConfig {name, drop[], seed?, deterministic}` for the ablation study: appends `-<name>` to the job name, seeds torch/numpy/random, optionally turns on `torch.use_deterministic_algorithms(True, warn_only=True)` (process-global, sticky until restart), drops the named loss terms/stages, and writes results to `tuned/ablation/<name>/` instead of `tuned/`. Without it every code path is the original
 - `GET /get-image?im_name=` — raw image bytes from output_dir
 - `GET /image-data?im_name=` — base64 image + BiSeNet 512×512 label matrix (+ `COLOR_MAP`, region ids nose=2 / skin=1) + 68 FAN 3D landmarks
 - `GET /get-images` — recursive list of all `.png` under output_dir (relative paths)
@@ -91,8 +96,8 @@ Progress lives in `process.json` via `file_process.py` (`set_inversion_image`, `
 
 - **`Net.py`** — wraps StyleGAN2 `Generator` (`models/stylegan2/model.py`, supports `start_layer`/`end_layer`/`layer_in` partial forward). Loads `ffhq.pt` `g_ema` + `latent_avg`, frozen/eval. `layer_num=18` @1024, `S_index=7` (layers ≥7 form the S half of FS). Holds the PCA model for p-norm regularization (`cal_p_norm_loss`, `cal_l_F`).
 - **`Embedding.py`** — image inversion (II2S-style): `invert_images_in_W` (W+ optimization; L2 + LPIPS + p-norm) then `invert_images_in_FS` (optimize F = layer-3 feature map + S = W+ layers 7–17; L2 + LPIPS + F-structure). Saves `output/<name>/FS.npz` (`latent_in`=S, `latent_F`=F) + `<name>.png`. Also records both phases into `k-inversion.mp4` via `utils/video.InversionVideo` (opened in `invert_image`, closed in a `finally`).
-- **`Tunning.py`** — `Tunning.tune_image(FineTuneContext)`; pydantic `FineTuneContext {ref_path, inversion_name, nose_path?, landmarks?, segmentation?}`. Self-tuning path `nose_tunning`: optimizes F+S with (1) cross-entropy seg loss vs user-edited 512×512 mask, (2) L1 landmark loss on nose landmarks (indices 27–35, `nose_idxs`), (3) LPIPS nose-style loss on aligned nose crops vs original, (4) masked LPIPS face-preservation loss outside the nose. Saves to `output/<name>/tuned/FS.npz` + `tuned/FS.png`.
-- **`StructureTransfer.py`** — NSB: loads both images' FS.npz; `swap_F_noses` blends F maps inside dilated nose masks minus "red line" (non-skin/non-nose) forbidden regions; then two optimization phases — nose-style LPIPS on grayscale aligned crops (10 steps, F only), then nose/rest LPIPS preservation (40 steps, F+S). Called via `Tunning.nose_transfer`, same save path. Local seg constants: NOSE=2, SKIN=1, HAIR=10.
+- **`Tunning.py`** — `Tunning.tune_image(FineTuneContext)`; pydantic `FineTuneContext {ref_path, inversion_name, nose_path?, landmarks?, segmentation?, ablation?}` and `AblationConfig {name, drop: [segmentation|landmarks|nose_style|face_style|mixing|preservation|nose_loss], seed?, deterministic}` (helper `ablation_dropped(cfg, key)`). Self-tuning path `nose_tunning`: optimizes F+S with (1) cross-entropy seg loss vs user-edited 512×512 mask, (2) L1 landmark loss on nose landmarks (indices 27–35, `nose_idxs`), (3) LPIPS nose-style loss on aligned nose crops vs original, (4) masked LPIPS face-preservation loss outside the nose — each term guarded by `if not ablation_dropped(...)`. `save_result(F, S, ref_path, subdir="tuned")` saves to `output/<name>/<subdir>/FS.npz` + `FS.png` (`tuned/ablation/<name>/` when an ablation config is present).
+- **`StructureTransfer.py`** — NSB: `transfer(I1, I2, inversion_name, ablation=None)` loads both images' FS.npz; stage 1 optimizes `F_mix` (initialised from the **target's** F2 — the preceding `swap_F_noses` result is overwritten, dead code) with nose-style LPIPS on grayscale aligned crops (10 steps); stage 2 `swap_F_noses` blends F maps inside dilated nose masks minus "red line" (non-skin/non-nose) forbidden regions; stage 3 nose/rest LPIPS preservation (40 steps, F+S). Ablation switches: `mixing` skips stage 1, `preservation` returns right after the blend, `nose_loss` drops the nose term of stage 3. Called via `Tunning.nose_transfer`, same save path. Local seg constants: NOSE=2, SKIN=1, HAIR=10.
 - **`face_parsing/`** — BiSeNet (16 classes), input 512, normalized by `seg_mean`/`seg_std` from `face_parsing/model.py`.
 - **`stylegan2/op/`** — fused CUDA ops (`fused_act`, `upfirdn2d`) compiled at runtime; needs CUDA toolkit + ninja.
 
@@ -111,6 +116,7 @@ Progress lives in `process.json` via `file_process.py` (`set_inversion_image`, `
 - Nearly everything assumes CUDA; several helpers hardcode `.cuda()` / `device="cuda"`.
 - Heavy work happens at import time: `fan.py` builds FaceAlignment on import; `main.py` builds BiSeNet + `Embedding` + `Tunning` at startup.
 - Existing naming/spelling ("Tunning", "Perpetual", "prepropess") is intentional legacy — match it, don't rename.
+- The StyleGAN2 generator runs with `randomize_noise=True`, so every forward draws fresh noise: two unseeded runs of the same edit differ by ~3.4/255 mean abs pixel diff. Seed via the `ablation` field if reproducibility matters.
 - `process.json` is written in the CWD (`backend/` when run normally).
 
 ---

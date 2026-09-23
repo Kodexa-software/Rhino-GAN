@@ -22,7 +22,7 @@ from utils.fan import extract_face_landmarks
 from utils.model_utils import download_weight
 from datasets.image_dataset import ImagesDataset
 from fastapi.middleware.cors import CORSMiddleware
-from models.Tunning import FineTuneContext, Tunning
+from models.Tunning import FineTuneContext, Tunning, AblationConfig
 from utils.helpers import COLOR_MAP, NOSE_REGION, SKIN_REGION
 from models.face_parsing.model import BiSeNet, seg_mean, seg_std
 from file_process import get_all, error_field, set_inversion_image
@@ -116,6 +116,7 @@ class FineTuneRequest(BaseModel):
     noseStyle: Optional[str] = None
     landmarks: Optional[str] = None
     segmentation: Optional[str] = None
+    ablation: Optional[AblationConfig] = None   # ablation-study override; omitted by the frontend
 
 tunning = Tunning(setting)
 def process_fine_tune(item:FineTuneContext):  
@@ -209,9 +210,12 @@ async def image_fine_tune(
         }
         inversion_name =  "Transfer-" + Path(ref_full_path).stem + Path(full_nose_path).stem
 
+    if body.ablation is not None:
+        inversion_name = inversion_name + "-" + body.ablation.name
+
     set_inversion_image(inversion_name, inversion)
     
-    imageItem = FineTuneContext(inversion_name = inversion_name, ref_path = ref_full_path, nose_path = full_nose_path, landmarks = landmarks, segmentation = segmentation)
+    imageItem = FineTuneContext(inversion_name = inversion_name, ref_path = ref_full_path, nose_path = full_nose_path, landmarks = landmarks, segmentation = segmentation, ablation = body.ablation)
 
     if (currentWorkers == maxWorkers):
         imageQueue.put(imageItem)

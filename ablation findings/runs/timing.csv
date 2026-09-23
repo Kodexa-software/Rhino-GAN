@@ -1,0 +1,15 @@
+case,config,seconds
+nsb_4_from_5,B0,7.1
+nsb_4_from_5,B1,6.0
+nsb_4_from_5,B2,3.0
+nsb_4_from_5,B3,6.1
+nsr_4_reduce,N0,21.4
+nsr_4_reduce,N1,15.3
+nsr_4_reduce,N2,11.3
+nsr_4_reduce,N3,12.3
+nsr_4_reduce,N4,15.3
+nsr_4_enlarge,N0,16.4
+nsr_4_enlarge,N1,15.3
+nsr_4_enlarge,N2,11.3
+nsr_4_enlarge,N3,12.3
+nsr_4_enlarge,N4,15.3
